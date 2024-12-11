@@ -77,6 +77,8 @@ func main() {
 				"attributes",
 				msg.Event.Data.State.Attributes,
 			)
+
+			hassBridge.update(msg)
 		}
 	}
 }

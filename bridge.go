@@ -10,6 +10,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 	"github.com/godbus/dbus/v5/prop"
+	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
 )
 
 const (
@@ -131,6 +132,46 @@ func (b *bridge) connect(errc chan<- error) (err error) {
 	}
 
 	return nil
+}
+
+func (b *bridge) setPlayerProps(name string, value dbus.Variant) {
+	b.properties.SetMust(dbusPlayerIface, name, value)
+}
+
+func (b *bridge) update(msg hassmessage.Message) {
+	// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
+	switch msg.Event.State() {
+	case "playing":
+		b.setPlayerProps("PlaybackStatus", dbus.MakeVariant(playbackPlaying))
+	case "paused", "buffering":
+		b.setPlayerProps("PlaybackStatus", dbus.MakeVariant(playbackPaused))
+	default:
+		b.setPlayerProps("PlaybackStatus", dbus.MakeVariant(playbackStopped))
+	}
+
+	switch msg.Event.LoopStatus() {
+	case "all":
+		b.setPlayerProps("LoopStatus", dbus.MakeVariant(loopPlaylist))
+	case "one":
+		b.setPlayerProps("LoopStatus", dbus.MakeVariant(loopTrack))
+	case "none":
+		b.setPlayerProps("LoopStatus", dbus.MakeVariant(loopNone))
+	}
+
+	if msg.Event.Shuffle() != nil {
+		b.setPlayerProps("Shuffle", dbus.MakeVariant(*msg.Event.Shuffle()))
+	}
+
+	b.setPlayerProps("Metadata", dbus.MakeVariant(map[string]dbus.Variant{
+		"mpris:length": dbus.MakeVariant(msg.Event.Duration()),
+		"mpris:artUrl": dbus.MakeVariant(msg.Event.ArtURL()),
+		"xesam:album":  dbus.MakeVariant(msg.Event.Album()),
+		"xesam:artist": dbus.MakeVariant(msg.Event.Artist()),
+		"xesam:title":  dbus.MakeVariant(msg.Event.Title()),
+	}))
+
+	b.setPlayerProps("Volume", dbus.MakeVariant(msg.Event.Volume()))
+	b.setPlayerProps("Position", dbus.MakeVariant(msg.Event.Position()))
 }
 
 func newBridge(ctx context.Context) (b *bridge, err error) {
