@@ -25,11 +25,12 @@ const (
 
 // bridge is the D-bus object implementing `org.mpris.MediaPlayer2`.
 type bridge struct {
-	ctx       context.Context
-	player    *player
-	conn      *dbus.Conn // shared connection don't close
-	errc      chan<- error
-	propsSpec map[string]*prop.Prop
+	ctx        context.Context
+	player     *player
+	conn       *dbus.Conn // shared connection don't close
+	errc       chan<- error
+	propsSpec  map[string]*prop.Prop
+	properties *prop.Properties
 }
 
 // Raise do nothing.
@@ -91,6 +92,7 @@ func (b *bridge) export() (objIface, plyIface introspect.Interface, err error) {
 	objIface.Properties = props.Introspection(dbusObjectIface)
 	plyIface.Methods = introspect.Methods(b.player)
 	plyIface.Properties = props.Introspection(dbusPlayerIface)
+	b.properties = props
 
 	return objIface, plyIface, nil
 }
