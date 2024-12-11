@@ -38,6 +38,18 @@ func main() {
 		return
 	}
 
+	hassBridge, err := newBridge(ctx)
+	if err != nil {
+		log.Error("create new MPRIS bridge failed", "err", err)
+		return
+	}
+	defer hassBridge.close()
+
+	if err := hassBridge.connect(errc); err != nil {
+		log.Error("connect to D-bus failed", "err", err)
+		return
+	}
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
 
