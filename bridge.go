@@ -13,12 +13,14 @@ import (
 )
 
 const (
-	dbusNameFormat      = dbusObjectIfaceName + ".hassbridge.instance%d"
-	dbusObjectPath      = "/org/mpris/MediaPlayer2"
-	dbusObjectIfaceName = "org.mpris.MediaPlayer2"
-	dbusPlayerIfaceName = dbusObjectIfaceName + ".Player"
-	desktopName         = "HASS media_player to MPRIS Bridge"
-	desktopEntry        = "hassbridge"
+	dbusNameFormat       = dbusObjectIface + ".hassbridge.instance%d"
+	dbusObjectPath       = "/org/mpris/MediaPlayer2"
+	dbusObjectIface      = "org.mpris.MediaPlayer2"
+	dbusPlayerIface      = dbusObjectIface + ".Player"
+	dbusPropertiesIface  = "org.freedesktop.DBus.Properties"
+	dbusPropChangedIface = dbusPropertiesIface + "PropertiesChanged"
+	desktopName          = "HASS media_player to MPRIS Bridge"
+	desktopEntry         = "hassbridge"
 )
 
 // bridge is the D-bus object implementing `org.mpris.MediaPlayer2`.
@@ -69,26 +71,26 @@ func (b *bridge) props() map[string]*prop.Prop {
 }
 
 func (b *bridge) export() (objIface, plyIface introspect.Interface, err error) {
-	if err := b.conn.Export(b, dbusObjectPath, dbusObjectIfaceName); err != nil {
+	if err := b.conn.Export(b, dbusObjectPath, dbusObjectIface); err != nil {
 		return objIface, plyIface, err
 	}
 
-	if err := b.conn.Export(b.player, dbusObjectPath, dbusPlayerIfaceName); err != nil {
+	if err := b.conn.Export(b.player, dbusObjectPath, dbusPlayerIface); err != nil {
 		return objIface, plyIface, err
 	}
 
 	props, err := prop.Export(b.conn, dbusObjectPath, map[string]map[string]*prop.Prop{
-		dbusObjectIfaceName: b.props(),
-		dbusPlayerIfaceName: b.player.props(),
+		dbusObjectIface: b.props(),
+		dbusPlayerIface: b.player.props(),
 	})
 	if err != nil {
 		return objIface, plyIface, err
 	}
 
 	objIface.Methods = introspect.Methods(b)
-	objIface.Properties = props.Introspection(dbusObjectIfaceName)
+	objIface.Properties = props.Introspection(dbusObjectIface)
 	plyIface.Methods = introspect.Methods(b.player)
-	plyIface.Properties = props.Introspection(dbusPlayerIfaceName)
+	plyIface.Properties = props.Introspection(dbusPlayerIface)
 
 	return objIface, plyIface, nil
 }
