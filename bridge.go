@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -144,10 +145,7 @@ func (b *bridge) connect(errc chan<- error) (err error) {
 	}
 
 	return nil
-}
 
-func (b *bridge) setPlayerProps(name string, value dbus.Variant) {
-	b.properties.SetMust(dbusPlayerIface, name, value)
 }
 
 func (b *bridge) downloadArtwork(artUrl string) string {
@@ -191,41 +189,63 @@ func (b *bridge) downloadArtwork(artUrl string) string {
 }
 
 func (b *bridge) update(msg hassmessage.Message) {
-	// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
-	switch msg.Event.State() {
-	case "playing":
-		b.setPlayerProps("PlaybackStatus", dbus.MakeVariant(playbackPlaying))
-	case "paused", "buffering":
-		b.setPlayerProps("PlaybackStatus", dbus.MakeVariant(playbackPaused))
-	default:
-		b.setPlayerProps("PlaybackStatus", dbus.MakeVariant(playbackStopped))
+	if !strings.HasPrefix(msg.Event.Data.EntityID, "media_player.") && !msg.Event.IsMusicPlayer() {
+		return
 	}
 
-	switch msg.Event.LoopStatus() {
-	case "all":
-		b.setPlayerProps("LoopStatus", dbus.MakeVariant(loopPlaylist))
-	case "one":
-		b.setPlayerProps("LoopStatus", dbus.MakeVariant(loopTrack))
-	case "none":
-		b.setPlayerProps("LoopStatus", dbus.MakeVariant(loopNone))
+	parseState := func(state string) dbus.Variant {
+		// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
+		switch state {
+		case "playing":
+			return dbus.MakeVariant(playbackPlaying)
+		case "paused", "buffering":
+			return dbus.MakeVariant(playbackPaused)
+		default:
+			return dbus.MakeVariant(playbackStopped)
+		}
 	}
 
-	if msg.Event.Shuffle() != nil {
-		b.setPlayerProps("Shuffle", dbus.MakeVariant(*msg.Event.Shuffle()))
+	parseLoopStatus := func(loopSts string) dbus.Variant {
+		switch loopSts {
+		case "all":
+			return dbus.MakeVariant(loopPlaylist)
+		case "one":
+			return dbus.MakeVariant(loopTrack)
+		case "none":
+			fallthrough
+		default:
+			return dbus.MakeVariant(loopNone)
+		}
 	}
 
-	artPath := b.downloadArtwork(msg.Event.ArtURL())
+	parseShuffle := func(shuffleState *bool) dbus.Variant {
+		var status bool
+		if shuffleState != nil {
+			status = *shuffleState
+		}
+		return dbus.MakeVariant(status)
+	}
 
-	b.setPlayerProps("Metadata", dbus.MakeVariant(map[string]dbus.Variant{
-		"mpris:length": dbus.MakeVariant(msg.Event.Duration()),
-		"mpris:artUrl": dbus.MakeVariant(artPath),
-		"xesam:album":  dbus.MakeVariant(msg.Event.Album()),
-		"xesam:artist": dbus.MakeVariant(msg.Event.Artist()),
-		"xesam:title":  dbus.MakeVariant(msg.Event.Title()),
-	}))
+	props := map[string]dbus.Variant{
+		"PlaybackStatus": parseState(msg.Event.State()),
+		"LoopStatus":     parseLoopStatus(msg.Event.LoopStatus()),
+		"Shuffle":        parseShuffle(msg.Event.Shuffle()),
+		"Metadata": dbus.MakeVariant(map[string]dbus.Variant{
+			"mpris:length": dbus.MakeVariant(msg.Event.Duration()),
+			"mpris:artUrl": dbus.MakeVariant(b.downloadArtwork(msg.Event.ArtURL())),
+			"xesam:album":  dbus.MakeVariant(msg.Event.Album()),
+			"xesam:artist": dbus.MakeVariant(msg.Event.Artist()),
+			"xesam:title":  dbus.MakeVariant(msg.Event.Title()),
+		}),
+		"Volume":   dbus.MakeVariant(msg.Event.Volume()),
+		"Position": dbus.MakeVariant(msg.Event.Position()),
+	}
 
-	b.setPlayerProps("Volume", dbus.MakeVariant(msg.Event.Volume()))
-	b.setPlayerProps("Position", dbus.MakeVariant(msg.Event.Position()))
+	log.Debug("update MPRIS properties", "properties", props)
+
+	for k, v := range props {
+		b.properties.SetMust(dbusPlayerIface, k, v)
+	}
 }
 
 func newBridge(ctx context.Context) (b *bridge, err error) {
