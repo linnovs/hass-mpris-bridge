@@ -246,6 +246,8 @@ func (b *bridge) update(msg hassmessage.Message) {
 	for k, v := range props {
 		b.properties.SetMust(dbusPlayerIface, k, v)
 	}
+
+	b.player.setEntityID(msg.Event.Data.EntityID)
 }
 
 func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {

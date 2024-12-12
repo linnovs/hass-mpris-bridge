@@ -1,8 +1,12 @@
 package main
 
 import (
+	"errors"
+	"sync"
+
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/prop"
+	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
 )
 
 const (
@@ -29,8 +33,54 @@ const (
 type playerMetadata map[string]dbus.Variant
 
 type player struct {
+	mux       sync.Mutex
 	client    *hassClient
+	entityID  string
 	propsSpec map[string]*prop.Prop
+}
+
+func (p *player) callService(
+	service hassmessage.ServiceType,
+	data *hassmessage.CommandData,
+) *dbus.Error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	domain := hassmessage.DomainMediaPlayer
+	rtResp := false
+
+	id, msg, err := p.client.sendCommand(hassmessage.Command{
+		Type:    hassmessage.TypeCallService,
+		Domain:  &domain,
+		Service: &service,
+		Target: &hassmessage.Target{
+			EntityID: &p.entityID,
+		},
+		ServiceData:    data,
+		ReturnResponse: &rtResp,
+	})
+	if err != nil {
+		if err == errCommandFailed {
+			return dbus.MakeFailedError(errors.New(msg.Error.Message))
+		}
+		return dbus.MakeFailedError(err)
+	}
+
+	p.client.commandDone(id)
+
+	return nil
+}
+
+// Play start or resumes playback.
+// see: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play
+func (p *player) Play() *dbus.Error {
+	return p.callService(hassmessage.ServicePlay, nil)
+}
+
+func (p *player) setEntityID(id string) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+	p.entityID = id
 }
 
 func (p *player) props() map[string]*prop.Prop {
