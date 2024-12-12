@@ -248,7 +248,7 @@ func (b *bridge) update(msg hassmessage.Message) {
 	}
 }
 
-func newBridge(ctx context.Context) (b *bridge, err error) {
+func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {
 	conn, err := dbus.SessionBus()
 	if err != nil {
 		return nil, err
@@ -268,7 +268,7 @@ func newBridge(ctx context.Context) (b *bridge, err error) {
 
 	return &bridge{
 		ctx:     ctx,
-		player:  &player{},
+		player:  &player{client: client},
 		hassURL: hassURL,
 		conn:    conn,
 		dir:     dir,

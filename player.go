@@ -29,6 +29,7 @@ const (
 type playerMetadata map[string]dbus.Variant
 
 type player struct {
+	client    *hassClient
 	propsSpec map[string]*prop.Prop
 }
 
