@@ -77,6 +77,12 @@ func (p *player) Next() *dbus.Error {
 	return p.callService(hassmessage.ServiceNext, nil)
 }
 
+// Previous skips to the previous track in the tracklist.
+// see: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous
+func (p *player) Previous() *dbus.Error {
+	return p.callService(hassmessage.ServicePrevious, nil)
+}
+
 // Pause pauses playback.
 // see: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause
 func (p *player) Pause() *dbus.Error {
