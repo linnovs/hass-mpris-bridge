@@ -71,6 +71,12 @@ func (p *player) callService(
 	return nil
 }
 
+// PlayPause pauses playback.
+// see: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause
+func (p *player) PlayPause() *dbus.Error {
+	return p.callService(hassmessage.ServicePlayPause, nil)
+}
+
 // Play start or resumes playback.
 // see: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play
 func (p *player) Play() *dbus.Error {
