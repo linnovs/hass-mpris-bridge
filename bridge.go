@@ -112,10 +112,9 @@ func (b *bridge) export() (objIface, plyIface introspect.Interface, err error) {
 }
 
 func (b *bridge) connect(errc chan<- error) (err error) {
-	reply, err := b.conn.RequestName(
-		fmt.Sprintf(dbusNameFormat, os.Getpid()),
-		dbus.NameFlagDoNotQueue,
-	)
+	name := fmt.Sprintf(dbusNameFormat, os.Getpid())
+
+	reply, err := b.conn.RequestName(name, dbus.NameFlagDoNotQueue)
 	if err != nil {
 		return err
 	}
@@ -144,8 +143,9 @@ func (b *bridge) connect(errc chan<- error) (err error) {
 		return err
 	}
 
-	return nil
+	log.Info("exported D-bus /org/mpris/MediaPlayer2", "name", name)
 
+	return nil
 }
 
 func (b *bridge) downloadArtwork(artUrl string) string {
