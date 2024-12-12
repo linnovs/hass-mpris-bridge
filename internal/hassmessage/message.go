@@ -24,6 +24,8 @@ const (
 	TypeReuseID MessageType = "id_reuse"
 	// TypeCommandSubscribeEvent is the command for client subscribe to event bus on the server.
 	TypeCommandSubscribeEvent MessageType = "subscribe_events"
+	// TypeCallService is the command for client to call a service action on the server.
+	TypeCallService MessageType = "call_service"
 )
 
 // Error represent the Result message type's error field.
