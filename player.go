@@ -71,7 +71,7 @@ func (p *player) callService(
 	return nil
 }
 
-// Next skips to the next track.
+// Next skips to the next track in the tracklist.
 // see: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next
 func (p *player) Next() *dbus.Error {
 	return p.callService(hassmessage.ServiceNext, nil)
