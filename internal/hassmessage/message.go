@@ -20,6 +20,8 @@ const (
 	TypePing MessageType = "ping"
 	// TypePong will return by the server as quickly as possible when it received ping message.
 	TypePong MessageType = "pong"
+	// TypeReuseID will return when the same message id is used once.
+	TypeReuseID MessageType = "id_reuse"
 	// TypeCommandSubscribeEvent is the command for client subscribe to event bus on the server.
 	TypeCommandSubscribeEvent MessageType = "subscribe_events"
 )
