@@ -4,13 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 	"github.com/godbus/dbus/v5/prop"
 	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 const (
@@ -30,6 +36,8 @@ type bridge struct {
 	player     *player
 	conn       *dbus.Conn // shared connection don't close
 	errc       chan<- error
+	hassURL    string
+	dir        string
 	propsSpec  map[string]*prop.Prop
 	properties *prop.Properties
 }
@@ -49,6 +57,10 @@ func (b *bridge) Quit() *dbus.Error {
 func (b *bridge) close() {
 	if err := b.conn.Close(); err != nil {
 		log.Error("D-bus connection close failed", "err", err)
+	}
+
+	if err := os.RemoveAll(b.dir); err != nil {
+		log.Error("remove tempdir failed", "err", err)
 	}
 }
 
@@ -138,6 +150,46 @@ func (b *bridge) setPlayerProps(name string, value dbus.Variant) {
 	b.properties.SetMust(dbusPlayerIface, name, value)
 }
 
+func (b *bridge) downloadArtwork(artUrl string) string {
+	if artUrl == "" {
+		return ""
+	}
+
+	artUrl = b.hassURL + artUrl
+	file := filepath.Join(b.dir, gonanoid.Must())
+
+	out, err := os.Create(file)
+	if err != nil {
+		log.Error("failed to create temp file for download artwork image", "err", err)
+
+		return ""
+	}
+	defer out.Close()
+
+	go func(file string) {
+		<-time.After(time.Hour)
+		if err := os.Remove(file); err != nil {
+			log.With("err", err, "file", file).Error("remove artwork file failed")
+		}
+	}(file)
+
+	resp, err := http.Get(artUrl)
+	if err != nil {
+		log.Error("download art work failed", "err", err)
+
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		log.Error("copy art work to file failed", "err", err)
+
+		return ""
+	}
+
+	return fmt.Sprintf("file://%s", file)
+}
+
 func (b *bridge) update(msg hassmessage.Message) {
 	// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
 	switch msg.Event.State() {
@@ -162,9 +214,11 @@ func (b *bridge) update(msg hassmessage.Message) {
 		b.setPlayerProps("Shuffle", dbus.MakeVariant(*msg.Event.Shuffle()))
 	}
 
+	artPath := b.downloadArtwork(msg.Event.ArtURL())
+
 	b.setPlayerProps("Metadata", dbus.MakeVariant(map[string]dbus.Variant{
 		"mpris:length": dbus.MakeVariant(msg.Event.Duration()),
-		"mpris:artUrl": dbus.MakeVariant(msg.Event.ArtURL()),
+		"mpris:artUrl": dbus.MakeVariant(artPath),
 		"xesam:album":  dbus.MakeVariant(msg.Event.Album()),
 		"xesam:artist": dbus.MakeVariant(msg.Event.Artist()),
 		"xesam:title":  dbus.MakeVariant(msg.Event.Title()),
@@ -180,5 +234,23 @@ func newBridge(ctx context.Context) (b *bridge, err error) {
 		return nil, err
 	}
 
-	return &bridge{ctx: ctx, player: &player{}, conn: conn}, nil
+	hassurl, err := url.Parse(os.Getenv("HASS_URI"))
+	if err != nil {
+		return nil, err
+	}
+
+	hassURL := fmt.Sprintf("https://%s", hassurl.Host)
+
+	dir, err := os.MkdirTemp("", "hassbridge")
+	if err != nil {
+		return nil, err
+	}
+
+	return &bridge{
+		ctx:     ctx,
+		player:  &player{},
+		hassURL: hassURL,
+		conn:    conn,
+		dir:     dir,
+	}, nil
 }
