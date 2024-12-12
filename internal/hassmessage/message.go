@@ -32,7 +32,7 @@ type Error struct {
 
 // Message represent the message that server sent to client after authentication phase.
 type Message struct {
-	ID   int64       `json:"id"`
+	ID   uint64      `json:"id"`
 	Type MessageType `json:"type"`
 
 	// Result message type only

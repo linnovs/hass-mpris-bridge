@@ -10,7 +10,7 @@ const (
 
 // Command represent the command message for the client.
 type Command struct {
-	ID   int64       `json:"id"`
+	ID   uint64      `json:"id"`
 	Type MessageType `json:"type"`
 
 	// Optional params
