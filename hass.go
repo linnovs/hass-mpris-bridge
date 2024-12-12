@@ -14,12 +14,17 @@ import (
 	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
 )
 
+var (
+	errUnexpectedMsg = errors.New("unexpected message after command")
+	errCommandFailed = errors.New("command result failed")
+)
+
 type hassClient struct {
-	ctx           context.Context
-	conn          *websocket.Conn
-	subscriberMux sync.Mutex
-	subscriber    map[int64]chan hassmessage.Message
-	messageID     atomic.Int64
+	ctx          context.Context
+	conn         *websocket.Conn
+	receiversMux sync.Mutex
+	receivers    map[uint64]chan hassmessage.Message
+	messageID    atomic.Uint64
 }
 
 func (c *hassClient) listen(errc chan<- error) {
@@ -38,38 +43,50 @@ func (c *hassClient) listen(errc chan<- error) {
 			continue
 		}
 
-		c.subscriberMux.Lock()
-		if ch, ok := c.subscriber[msg.ID]; ok {
-			select {
-			case ch <- msg:
-			default:
-				go func() { ch <- msg }()
-			}
-		} else {
-			log.Warn("message received but no subscriber", "msg", msg)
+		if msg.Type == hassmessage.TypeReuseID {
+			errc <- errors.New("HASS websocket id reuse, should recreate connection")
+			return
 		}
-		c.subscriberMux.Unlock()
+
+		c.receiversMux.Lock()
+		receiverCh, ok := c.receivers[msg.ID]
+		c.receiversMux.Unlock()
+		if !ok {
+			log.Warn("message received but no subscriber", "message", msg)
+			continue
+		}
+
+		select {
+		case receiverCh <- msg:
+		default:
+			go func() { receiverCh <- msg }()
+		}
 	}
 }
 
 func (c *hassClient) heartbeat() {
 	const interval = 45 * time.Second
 
-	ticker := time.NewTicker(interval)
-	for range ticker.C {
+	f := func() {
+		id := c.incrementID()
+		msg := hassmessage.Command{ID: id, Type: hassmessage.TypePing}
+
+		if err := wsjson.Write(c.ctx, c.conn, &msg); err != nil {
+			log.Error("senting ping message failed", "err", err)
+
+			return
+		}
+
+		log.Debug("ping message sent", "id", id)
+	}
+
+	f()
+	for range time.Tick(interval) {
 		select {
 		case <-c.ctx.Done():
 			return
 		default:
-			id := c.messageID.Add(1)
-			msg := hassmessage.Command{ID: id, Type: hassmessage.TypePing}
-
-			if err := wsjson.Write(c.ctx, c.conn, &msg); err != nil {
-				log.Error("senting ping message failed", "err", err)
-				continue
-			}
-
-			log.Debug("ping message sent", "id", id)
+			f()
 		}
 	}
 }
@@ -120,34 +137,66 @@ func (c *hassClient) connect(uri, token string, errc chan<- error) (err error) {
 	return nil
 }
 
-func (c *hassClient) subscribe(evtType hassmessage.EventType) (<-chan hassmessage.Message, error) {
+func (c *hassClient) incrementID() uint64 {
+	return c.messageID.Add(1)
+}
+
+func (c *hassClient) sentCommand(
+	cmd hassmessage.Command,
+) (id uint64, msg hassmessage.Message, err error) {
 	ch := make(chan hassmessage.Message, 1)
-	id := c.messageID.Add(1)
+	id = c.incrementID()
+	cmd.ID = id
 
-	c.subscriberMux.Lock()
-	c.subscriber[id] = ch
-	c.subscriberMux.Unlock()
+	c.receiversMux.Lock()
+	c.receivers[id] = ch
+	c.receiversMux.Unlock()
 
-	if err := wsjson.Write(c.ctx, c.conn, &hassmessage.Command{
-		ID:        id,
+	defer func() {
+		if err != nil {
+			c.receiversMux.Lock()
+			delete(c.receivers, id)
+			c.receiversMux.Unlock()
+		}
+	}()
+
+	if err := wsjson.Write(c.ctx, c.conn, &cmd); err != nil {
+		return id, msg, err
+	}
+
+	msg = <-ch
+	if msg.Type != hassmessage.TypeResult {
+		err = errUnexpectedMsg
+		return id, msg, err
+	}
+
+	if !msg.Success {
+		err = errCommandFailed
+		return id, msg, err
+	}
+
+	return id, msg, nil
+}
+
+func (c *hassClient) subscribe(evtType hassmessage.EventType) (<-chan hassmessage.Message, error) {
+	id, msg, err := c.sentCommand(hassmessage.Command{
 		Type:      hassmessage.TypeCommandSubscribeEvent,
 		EventType: &evtType,
-	}); err != nil {
+	})
+	if err != nil {
+		if err == errCommandFailed {
+			log.Error("command failed", "message", msg.Result)
+		}
+
 		return nil, err
 	}
 
-	msg := <-ch
-	if msg.Type != hassmessage.TypeResult {
-		log.Debug("wrong message received after subscribe_events command", "msg", msg)
+	c.receiversMux.Lock()
+	defer c.receiversMux.Unlock()
 
-		c.subscriberMux.Lock()
-		delete(c.subscriber, id)
-		c.subscriberMux.Unlock()
+	log.Info("subscribe to HASS event", "event", evtType)
 
-		return nil, fmt.Errorf("unexpected message type after subscribe_events: %s", msg.Type)
-	}
-
-	return ch, nil
+	return c.receivers[id], nil
 }
 
 func (c *hassClient) close() {
@@ -158,7 +207,7 @@ func (c *hassClient) close() {
 
 func newHASSClient(ctx context.Context) *hassClient {
 	return &hassClient{
-		ctx:        ctx,
-		subscriber: make(map[int64]chan hassmessage.Message),
+		ctx:       ctx,
+		receivers: make(map[uint64]chan hassmessage.Message),
 	}
 }
