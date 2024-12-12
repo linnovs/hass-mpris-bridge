@@ -23,9 +23,17 @@ type Event struct {
 				VolumeLevel float64 `json:"volume_level"`
 				Shuffle     *bool   `json:"shuffle,omitempty"`
 				Repeat      *string `json:"repeat,omitempty"`
+				ContentType *string `json:"media_content_type"`
 			} `json:"attributes"`
 		} `json:"new_state"`
 	} `json:"data"`
+}
+
+func (e Event) IsMusicPlayer() bool {
+	if e.Data.State.Attributes.ContentType != nil {
+		return *e.Data.State.Attributes.ContentType == "music"
+	}
+	return false
 }
 
 func (e Event) State() string {
