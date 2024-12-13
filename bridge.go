@@ -243,7 +243,15 @@ func (b *bridge) update(msg hassmessage.Message) {
 		"Position": dbus.MakeVariant(msg.Event.Position()),
 	}
 
-	log.Debug("update MPRIS properties", "properties", props)
+	log.Info(
+		"update player status",
+		"status", props["PlaybackStatus"].Value(),
+		"loop", props["LoopStatus"].Value(),
+		"shuffle", props["Shuffle"].Value(),
+		"album", msg.Event.Album(),
+		"title", msg.Event.Title(),
+		"artist", msg.Event.Artist(),
+	)
 
 	for k, v := range props {
 		b.properties.SetMust(dbusPlayerIface, k, v)
