@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/charmbracelet/log"
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/prop"
 	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
@@ -61,6 +62,7 @@ func (p *player) callService(
 	})
 	if err != nil {
 		if err == errCommandFailed {
+			log.Error("HASS call_service command failed", "err", msg.Error.Message)
 			return dbus.MakeFailedError(errors.New(msg.Error.Message))
 		}
 		return dbus.MakeFailedError(err)
