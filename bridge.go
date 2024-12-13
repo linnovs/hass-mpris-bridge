@@ -192,6 +192,11 @@ func (b *bridge) update(msg hassmessage.Message) {
 		return
 	}
 
+	if slices.Contains([]string{"off", "on", "idle"}, msg.Event.State()) {
+		log.Debug("HASS return media_player state is on/off/idle, skip update")
+		return
+	}
+
 	parseState := func(state string) dbus.Variant {
 		// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
 		switch state {
