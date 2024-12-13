@@ -270,8 +270,7 @@ func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {
 	if err != nil {
 		return nil, err
 	}
-
-	hassURL := fmt.Sprintf("https://%s", hassurl.Host)
+	hassurl = &url.URL{Scheme: "https", Host: hassurl.Host}
 
 	dir, err := os.MkdirTemp("", "hassbridge")
 	if err != nil {
@@ -281,7 +280,7 @@ func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {
 	return &bridge{
 		ctx:     ctx,
 		player:  &player{client: client},
-		hassURL: hassURL,
+		hassURL: hassurl.String(),
 		conn:    conn,
 		dir:     dir,
 	}, nil
