@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -9,15 +11,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 	"github.com/godbus/dbus/v5/prop"
 	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
-	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 const (
@@ -153,8 +154,13 @@ func (b *bridge) downloadArtwork(artUrl string) string {
 		return ""
 	}
 
-	artUrl = b.hassURL + artUrl
-	file := filepath.Join(b.dir, gonanoid.Must())
+	sum := sha256.Sum256([]byte(artUrl))
+	sumStr := base64.URLEncoding.EncodeToString(sum[:])
+	file := filepath.Join(b.dir, sumStr)
+
+	if _, err := os.Stat(file); !errors.Is(err, os.ErrNotExist) {
+		return fmt.Sprintf("file://%s", file)
+	}
 
 	out, err := os.Create(file)
 	if err != nil {
@@ -164,14 +170,7 @@ func (b *bridge) downloadArtwork(artUrl string) string {
 	}
 	defer out.Close()
 
-	go func(file string) {
-		<-time.After(time.Hour)
-		if err := os.Remove(file); err != nil {
-			log.With("err", err, "file", file).Error("remove artwork file failed")
-		}
-	}(file)
-
-	resp, err := http.Get(artUrl)
+	resp, err := http.Get(fmt.Sprintf("%s%s", b.hassURL, artUrl))
 	if err != nil {
 		log.Error("download art work failed", "err", err)
 
