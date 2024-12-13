@@ -156,13 +156,13 @@ func (b *bridge) downloadArtwork(artUrl string) string {
 
 	sum := sha256.Sum256([]byte(artUrl))
 	sumStr := base64.URLEncoding.EncodeToString(sum[:])
-	file := filepath.Join(b.dir, sumStr)
+	fileUrl := url.URL{Scheme: "file", Path: filepath.Join(b.dir, sumStr)}
 
-	if _, err := os.Stat(file); !errors.Is(err, os.ErrNotExist) {
-		return fmt.Sprintf("file://%s", file)
+	if _, err := os.Stat(fileUrl.Path); !errors.Is(err, os.ErrNotExist) {
+		return fileUrl.String()
 	}
 
-	out, err := os.Create(file)
+	out, err := os.Create(fileUrl.Path)
 	if err != nil {
 		log.Error("failed to create temp file for download artwork image", "err", err)
 
@@ -184,7 +184,7 @@ func (b *bridge) downloadArtwork(artUrl string) string {
 		return ""
 	}
 
-	return fmt.Sprintf("file://%s", file)
+	return fileUrl.String()
 }
 
 func (b *bridge) update(msg hassmessage.Message) {
