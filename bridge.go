@@ -201,24 +201,22 @@ func (b *bridge) update(msg hassmessage.Message) {
 		// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
 		switch state {
 		case "playing":
-			return dbus.MakeVariant(playbackPlaying)
+			return dbus.MakeVariant(string(playbackPlaying))
 		case "paused", "buffering":
-			return dbus.MakeVariant(playbackPaused)
+			return dbus.MakeVariant(string(playbackPaused))
 		default:
-			return dbus.MakeVariant(playbackStopped)
+			return dbus.MakeVariant(string(playbackStopped))
 		}
 	}
 
 	parseLoopStatus := func(loopSts string) dbus.Variant {
 		switch loopSts {
 		case "all":
-			return dbus.MakeVariant(loopPlaylist)
+			return dbus.MakeVariant(string(loopPlaylist))
 		case "one":
-			return dbus.MakeVariant(loopTrack)
-		case "none":
-			fallthrough
+			return dbus.MakeVariant(string(loopTrack))
 		default:
-			return dbus.MakeVariant(loopNone)
+			return dbus.MakeVariant(string(loopNone))
 		}
 	}
 
