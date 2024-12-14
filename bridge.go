@@ -11,8 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/godbus/dbus/v5"
@@ -199,59 +197,26 @@ func (b *bridge) downloadArtwork(artPath string) string {
 }
 
 func (b *bridge) update(msg hassmessage.Message) {
-	if !strings.HasPrefix(msg.Event.Data.EntityID, "media_player.") && !msg.Event.IsMusicPlayer() {
+	if !msg.Event.IsMediaPlayer() && !msg.Event.IsMusicPlayer() {
 		return
-	}
-
-	if slices.Contains([]string{"off", "on", "idle"}, msg.Event.State()) {
-		log.Debug("HASS return media_player state is on/off/idle, skip update")
-		return
-	}
-
-	parseState := func(state string) dbus.Variant {
-		// sees https://www.home-assistant.io/integrations/media_player#the-state-of-a-media-player
-		switch state {
-		case "playing":
-			return dbus.MakeVariant(string(playbackPlaying))
-		case "paused", "buffering":
-			return dbus.MakeVariant(string(playbackPaused))
-		default:
-			return dbus.MakeVariant(string(playbackStopped))
-		}
-	}
-
-	parseLoopStatus := func(loopSts string) dbus.Variant {
-		switch loopSts {
-		case "all":
-			return dbus.MakeVariant(string(loopPlaylist))
-		case "one":
-			return dbus.MakeVariant(string(loopTrack))
-		default:
-			return dbus.MakeVariant(string(loopNone))
-		}
-	}
-
-	parseShuffle := func(shuffleState *bool) dbus.Variant {
-		var status bool
-		if shuffleState != nil {
-			status = *shuffleState
-		}
-		return dbus.MakeVariant(status)
 	}
 
 	props := map[string]dbus.Variant{
-		"PlaybackStatus": parseState(msg.Event.State()),
-		"LoopStatus":     parseLoopStatus(msg.Event.LoopStatus()),
-		"Shuffle":        parseShuffle(msg.Event.Shuffle()),
-		"Metadata": dbus.MakeVariant(map[string]dbus.Variant{
+		"PlaybackStatus": dbus.MakeVariant(msg.Event.State().String()),
+		"LoopStatus":     dbus.MakeVariant(msg.Event.Repeat().String()),
+		"Shuffle":        dbus.MakeVariant(msg.Event.Shuffle()),
+		"Volume":         dbus.MakeVariant(msg.Event.Volume()),
+		"Position":       dbus.MakeVariant(msg.Event.Position()),
+	}
+
+	if msg.Event.Title() != "" && msg.Event.Artist() != "" {
+		props["Metadata"] = dbus.MakeVariant(map[string]dbus.Variant{
 			"mpris:length": dbus.MakeVariant(msg.Event.Duration()),
 			"mpris:artUrl": dbus.MakeVariant(b.downloadArtwork(msg.Event.ArtURL())),
 			"xesam:album":  dbus.MakeVariant(msg.Event.Album()),
 			"xesam:artist": dbus.MakeVariant(msg.Event.Artist()),
 			"xesam:title":  dbus.MakeVariant(msg.Event.Title()),
-		}),
-		"Volume":   dbus.MakeVariant(msg.Event.Volume()),
-		"Position": dbus.MakeVariant(msg.Event.Position()),
+		})
 	}
 
 	log.Info(
@@ -268,7 +233,7 @@ func (b *bridge) update(msg hassmessage.Message) {
 		b.properties.SetMust(dbusPlayerIface, k, v)
 	}
 
-	b.player.setEntityID(msg.Event.Data.EntityID)
+	b.player.setEntityID(msg.Event.EntityID())
 }
 
 func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {
