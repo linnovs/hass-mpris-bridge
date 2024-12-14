@@ -1,6 +1,9 @@
 package hassmessage
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 type MediaPlayerAttrRepeat int
 
@@ -70,6 +73,10 @@ func (s *State) parseAttrs() {
 			panic(err)
 		}
 	}
+}
+
+func (s *State) IsMediaPlayer() bool {
+	return strings.HasPrefix(s.EntityID, mediaPlayerPrefix)
 }
 
 func (s *State) contentType() string {

@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const mediaPlayerPrefix = "media_player."
+
 type MediaPlayerData struct {
 	EntityID string `json:"entity_id"`
 	State    State  `json:"new_state"`
@@ -33,7 +35,7 @@ func (e *Event) EntityID() string {
 
 func (e *Event) IsMediaPlayer() bool {
 	e.parseMediaPlayerData()
-	return strings.HasPrefix(e.data.EntityID, "media_player.")
+	return strings.HasPrefix(e.data.EntityID, mediaPlayerPrefix)
 }
 
 func (e *Event) IsMusicPlayer() bool {
