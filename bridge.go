@@ -38,7 +38,7 @@ type bridge struct {
 	player     *player
 	conn       *dbus.Conn // shared connection don't close
 	errc       chan<- error
-	hassURL    string
+	hassURL    *url.URL
 	dir        string
 	propsSpec  map[string]*prop.Prop
 	properties *prop.Properties
@@ -149,12 +149,12 @@ func (b *bridge) connect(errc chan<- error) (err error) {
 	return nil
 }
 
-func (b *bridge) downloadArtwork(artUrl string) string {
-	if artUrl == "" {
+func (b *bridge) downloadArtwork(artPath string) string {
+	if artPath == "" {
 		return ""
 	}
 
-	sum := sha256.Sum256([]byte(artUrl))
+	sum := sha256.Sum256([]byte(artPath))
 	sumStr := base64.URLEncoding.EncodeToString(sum[:])
 	fileUrl := url.URL{Scheme: "file", Path: filepath.Join(b.dir, sumStr)}
 
@@ -170,9 +170,20 @@ func (b *bridge) downloadArtwork(artUrl string) string {
 	}
 	defer out.Close()
 
-	resp, err := http.Get(fmt.Sprintf("%s%s", b.hassURL, artUrl))
+	artUrl, err := b.hassURL.Parse(artPath)
 	if err != nil {
-		log.Error("download art work failed", "err", err)
+		log.Error("failed to parse art path for download URL", "err", err)
+
+		return ""
+	}
+
+	resp, err := http.Get(artUrl.String())
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if err == nil {
+			err = errors.New(resp.Status)
+		}
+
+		log.Error("download art work failed", "err", err, "url", artPath)
 
 		return ""
 	}
@@ -280,7 +291,7 @@ func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {
 	return &bridge{
 		ctx:     ctx,
 		player:  &player{client: client},
-		hassURL: hassurl.String(),
+		hassURL: hassurl,
 		conn:    conn,
 		dir:     dir,
 	}, nil
