@@ -167,29 +167,29 @@ func (c *hassClient) sendCommand(
 	cmd hassmessage.Command,
 ) (id uint64, msg hassmessage.Message, err error) {
 	ch := make(chan hassmessage.Message, 1)
-	id = c.incrementID()
-	cmd.ID = id
+	cmd.ID = c.incrementID()
 
 	c.receiversMux.Lock()
-	c.receivers[id] = ch
+	c.receivers[cmd.ID] = ch
 	c.receiversMux.Unlock()
 
 	if err := wsjson.Write(c.ctx, c.conn, &cmd); err != nil {
-		return id, msg, err
+		c.commandDone(cmd.ID)
+		return 0, msg, err
 	}
 
 	msg = <-ch
 	if msg.Type != hassmessage.TypeResult {
-		c.commandDone(id)
-		return id, msg, errUnexpectedMsg
+		c.commandDone(cmd.ID)
+		return 0, msg, errUnexpectedMsg
 	}
 
 	if !msg.Success {
-		c.commandDone(id)
-		return id, msg, errCommandFailed
+		c.commandDone(cmd.ID)
+		return 0, msg, errCommandFailed
 	}
 
-	return id, msg, nil
+	return cmd.ID, msg, nil
 }
 
 func (c *hassClient) subscribe(evtType hassmessage.EventType) (<-chan hassmessage.Message, error) {
