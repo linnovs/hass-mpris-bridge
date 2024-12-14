@@ -26,6 +26,8 @@ const (
 	TypeCommandSubscribeEvent MessageType = "subscribe_events"
 	// TypeCallService is the command for client to call a service action on the server.
 	TypeCallService MessageType = "call_service"
+	// TypeGetStates is the command for client to fetching states from the server.
+	TypeGetStates MessageType = "get_states"
 )
 
 // Error represent the Result message type's error field.

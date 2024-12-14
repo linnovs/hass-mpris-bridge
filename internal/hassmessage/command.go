@@ -34,16 +34,16 @@ const (
 
 // CommandData represent the `service_data` in calling a service.
 type CommandData struct {
-	IsMuted      *bool    `json:"is_volume_muted,omitempty"`
-	VolumeLevel  *float64 `json:"volume_level,omitempty"`
-	SeekPosition *int     `json:"seek_position,omitempty"`
-	Shuffle      *bool    `json:"shuffle,omitempty"`
-	RepeatMode   *string  `json:"repeat,omitempty"`
+	IsMuted      *bool   `json:"is_volume_muted,omitempty"`
+	VolumeLevel  float64 `json:"volume_level,omitempty"`
+	SeekPosition int     `json:"seek_position,omitempty"`
+	Shuffle      *bool   `json:"shuffle,omitempty"`
+	RepeatMode   string  `json:"repeat,omitempty"`
 }
 
 // Target represent the `target` in calling a service.
 type Target struct {
-	EntityID *string `json:"entity_id,omitempty"`
+	EntityID string `json:"entity_id,omitempty"`
 }
 
 // Command represent the command message for the client.
@@ -52,10 +52,10 @@ type Command struct {
 	Type MessageType `json:"type"`
 
 	// Optional params
-	Domain         *ServiceDomain `json:"domain,omitempty"`
-	Service        *ServiceType   `json:"service,omitempty"`
-	ServiceData    *CommandData   `json:"service_data,omitempty"`
-	Target         *Target        `json:"target,omitempty"`
-	ReturnResponse *bool          `json:"return_response,omitempty"`
-	EventType      *EventType     `json:"event_type,omitempty"`
+	Domain         ServiceDomain `json:"domain,omitempty"`
+	Service        ServiceType   `json:"service,omitempty"`
+	ServiceData    *CommandData  `json:"service_data,omitempty"`
+	Target         *Target       `json:"target,omitempty"`
+	ReturnResponse *bool         `json:"return_response,omitempty"`
+	EventType      EventType     `json:"event_type,omitempty"`
 }

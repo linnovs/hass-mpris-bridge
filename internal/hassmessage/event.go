@@ -1,81 +1,101 @@
 package hassmessage
 
 import (
+	"encoding/json"
 	"strings"
 )
 
+type MediaPlayerData struct {
+	EntityID string `json:"entity_id"`
+	State    State  `json:"new_state"`
+}
+
 // Event will sent by the server after the client sent the `subscribe_events` commands.
 type Event struct {
-	EventType EventType `json:"event_type"`
-	Data      struct {
-		EntityID string `json:"entity_id"`
-		State    struct {
-			State      string `json:"state"`
-			Attributes struct {
-				ID          string  `json:"app_id"`
-				Name        string  `json:"app_name"`
-				Picture     string  `json:"entity_picture"`
-				Album       string  `json:"media_album_name"`
-				Artist      string  `json:"media_artist"`
-				Duration    int64   `json:"media_duration"`
-				Position    int64   `json:"media_position"`
-				Title       string  `json:"media_title"`
-				VolumeLevel float64 `json:"volume_level"`
-				Shuffle     *bool   `json:"shuffle,omitempty"`
-				Repeat      *string `json:"repeat,omitempty"`
-				ContentType *string `json:"media_content_type"`
-			} `json:"attributes"`
-		} `json:"new_state"`
-	} `json:"data"`
+	EventType EventType       `json:"event_type"`
+	Data      json.RawMessage `json:"data"`
+	data      *MediaPlayerData
 }
 
-func (e Event) IsMusicPlayer() bool {
-	if e.Data.State.Attributes.ContentType != nil {
-		return *e.Data.State.Attributes.ContentType == "music"
+func (e *Event) parseMediaPlayerData() {
+	if e.data == nil {
+		e.data = &MediaPlayerData{}
+		if err := json.Unmarshal(e.Data, e.data); err != nil {
+			panic(err)
+		}
 	}
-	return false
 }
 
-func (e Event) State() string {
-	return strings.ToLower(e.Data.State.State)
+func (e *Event) EntityID() string {
+	e.parseMediaPlayerData()
+	return e.data.EntityID
 }
 
-func (e Event) LoopStatus() string {
-	if e.Data.State.Attributes.Repeat == nil {
-		return ""
+func (e *Event) IsMediaPlayer() bool {
+	e.parseMediaPlayerData()
+	return strings.HasPrefix(e.data.EntityID, "media_player.")
+}
+
+func (e *Event) IsMusicPlayer() bool {
+	e.parseMediaPlayerData()
+	return e.data.State.contentType() == "music"
+}
+
+func (e *Event) State() MediaPlayerAttrState {
+	e.parseMediaPlayerData()
+	switch e.data.State.State {
+	case "playing":
+		return MediaPlayerAttrStatePlaying
+	case "paused":
+		return MediaPlayerAttrStatePaused
+	case "standby":
+		return MediaPlayerAttrStateStopped
+	default:
+		return MediaPlayerAttrStateIdle
 	}
-
-	return strings.ToLower(*e.Data.State.Attributes.Repeat)
 }
 
-func (e Event) Shuffle() *bool {
-	return e.Data.State.Attributes.Shuffle
+func (e *Event) Repeat() MediaPlayerAttrRepeat {
+	e.parseMediaPlayerData()
+	return e.data.State.repeat()
 }
 
-func (e Event) Duration() int64 {
-	return e.Data.State.Attributes.Duration
+func (e *Event) Shuffle() bool {
+	e.parseMediaPlayerData()
+	return e.data.State.shuffle()
 }
 
-func (e Event) ArtURL() string {
-	return e.Data.State.Attributes.Picture
+func (e *Event) Duration() int64 {
+	e.parseMediaPlayerData()
+	return e.data.State.duration()
 }
 
-func (e Event) Album() string {
-	return e.Data.State.Attributes.Album
+func (e *Event) ArtURL() string {
+	e.parseMediaPlayerData()
+	return e.data.State.artUrl()
 }
 
-func (e Event) Artist() string {
-	return e.Data.State.Attributes.Artist
+func (e *Event) Album() string {
+	e.parseMediaPlayerData()
+	return e.data.State.album()
 }
 
-func (e Event) Title() string {
-	return e.Data.State.Attributes.Title
+func (e *Event) Artist() string {
+	e.parseMediaPlayerData()
+	return e.data.State.artist()
 }
 
-func (e Event) Volume() float64 {
-	return e.Data.State.Attributes.VolumeLevel
+func (e *Event) Title() string {
+	e.parseMediaPlayerData()
+	return e.data.State.title()
 }
 
-func (e Event) Position() int64 {
-	return e.Data.State.Attributes.Position
+func (e *Event) Volume() float64 {
+	e.parseMediaPlayerData()
+	return e.data.State.volume()
+}
+
+func (e *Event) Position() int64 {
+	e.parseMediaPlayerData()
+	return e.data.State.position()
 }
