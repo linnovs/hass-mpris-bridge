@@ -195,7 +195,7 @@ func (c *hassClient) sendCommand(
 func (c *hassClient) subscribe(evtType hassmessage.EventType) (<-chan hassmessage.Message, error) {
 	id, msg, err := c.sendCommand(hassmessage.Command{
 		Type:      hassmessage.TypeCommandSubscribeEvent,
-		EventType: &evtType,
+		EventType: evtType,
 	})
 	if err != nil {
 		if err == errCommandFailed {
