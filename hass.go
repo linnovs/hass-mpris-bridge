@@ -216,6 +216,8 @@ func (c *hassClient) subscribe(evtType hassmessage.EventType) (<-chan hassmessag
 func (c *hassClient) close() {
 	if err := c.conn.Close(websocket.StatusNormalClosure, "goodbye"); err != nil {
 		log.Error("HASS websocket close failed", "err", err)
+	} else {
+		log.Info("closed HASS websocket connection")
 	}
 }
 
