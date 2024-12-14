@@ -52,10 +52,10 @@ func (p *player) callService(
 
 	id, msg, err := p.client.sendCommand(hassmessage.Command{
 		Type:    hassmessage.TypeCallService,
-		Domain:  &domain,
-		Service: &service,
+		Domain:  domain,
+		Service: service,
 		Target: &hassmessage.Target{
-			EntityID: &p.entityID,
+			EntityID: p.entityID,
 		},
 		ServiceData:    data,
 		ReturnResponse: &rtResp,
