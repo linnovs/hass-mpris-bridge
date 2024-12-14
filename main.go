@@ -21,30 +21,29 @@ func main() {
 	}
 
 	errc := make(chan error)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	haClient := newHASSClient(ctx)
-	if err := haClient.connect(os.Getenv("HASS_URI"), os.Getenv("HASS_TOKEN"), errc); err != nil {
+	client := newHASSClient(ctx)
+	if err := client.connect(os.Getenv(envkeyURI), os.Getenv(envkeyToken), errc); err != nil {
 		log.Error("connect to HASS websocket failed", "err", err)
 		return
 	}
-	defer haClient.close()
+	defer client.close()
 
-	hassBridge, err := newBridge(ctx, haClient)
+	bdg, err := newBridge(ctx, client)
 	if err != nil {
 		log.Error("create new MPRIS bridge failed", "err", err)
 		return
 	}
-	defer hassBridge.close()
+	defer bdg.close()
 
-	if err := hassBridge.connect(errc); err != nil {
+	if err := bdg.connect(errc); err != nil {
 		log.Error("connect to D-bus failed", "err", err)
 		return
 	}
 
-	ch, err := haClient.subscribe(hassmessage.EventStateChanged)
+	ch, err := client.subscribe(hassmessage.EventStateChanged)
 	if err != nil {
 		log.Error("subscribe to HASS state_changed event failed", "err", err)
 		return
@@ -62,7 +61,7 @@ func main() {
 			log.Error("unexpected error occur", "err", err)
 			return
 		case msg := <-ch:
-			hassBridge.update(msg)
+			bdg.update(msg)
 		}
 	}
 }
