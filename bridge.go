@@ -57,10 +57,14 @@ func (b *bridge) Quit() *dbus.Error {
 func (b *bridge) close() {
 	if err := b.conn.Close(); err != nil {
 		log.Error("D-bus connection close failed", "err", err)
+	} else {
+		log.Info("disconnect from D-bus")
 	}
 
 	if err := os.RemoveAll(b.dir); err != nil {
 		log.Error("remove tempdir failed", "err", err)
+	} else {
+		log.Info("removed tempdir for art work files")
 	}
 }
 
