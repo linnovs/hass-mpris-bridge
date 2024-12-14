@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
+	"github.com/linnovs/hass-mpris-bridge/internal/bufferpool"
 	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
 )
 
@@ -31,12 +33,25 @@ func (c *hassClient) listen(errc chan<- error) {
 	for {
 		var msg hassmessage.Message
 
-		if err := wsjson.Read(c.ctx, c.conn, &msg); err != nil {
+		_, reader, err := c.conn.Reader(c.ctx)
+		if err != nil {
 			errc <- err
 			return
 		}
 
-		log.Debug("read message from HASS", "message", msg)
+		buf := bufferpool.Get()
+
+		if _, err := buf.ReadFrom(reader); err != nil {
+			errc <- err
+			return
+		}
+
+		log.Debug("read message from HASS", "message", buf)
+
+		if err := json.Unmarshal(buf.Bytes(), &msg); err != nil {
+			errc <- err
+			return
+		}
 
 		if msg.Type == hassmessage.TypePong {
 			log.Debug("pong message received", "id", msg.ID)
