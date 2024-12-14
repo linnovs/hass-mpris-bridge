@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,11 +10,13 @@ import (
 	"github.com/linnovs/hass-mpris-bridge/internal/hassmessage"
 )
 
-func main() {
-	verbose := flag.Bool("v", false, "verbose log")
-	flag.Parse()
+const (
+	envkeyURI   = "HASS_URI"
+	envkeyToken = "HASS_TOKEN"
+)
 
-	if *verbose {
+func main() {
+	if os.Getenv("DEBUG") == "true" {
 		log.SetLevel(log.DebugLevel)
 	}
 
