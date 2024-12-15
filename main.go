@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/signal"
 	"syscall"
@@ -43,6 +44,10 @@ func main() {
 		return
 	}
 
+	if !getInitState(bdg) {
+		return
+	}
+
 	ch, err := client.subscribe(hassmessage.EventStateChanged)
 	if err != nil {
 		log.Error("subscribe to HASS state_changed event failed", "err", err)
@@ -61,7 +66,17 @@ func main() {
 			log.Error("unexpected error occur", "err", err)
 			return
 		case msg := <-ch:
-			bdg.update(msg)
+			if msg.Event.EventType == hassmessage.EventStateChanged {
+				var data hassmessage.MediaPlayerData
+
+				if err := json.Unmarshal(msg.Event.Data, &data); err != nil {
+					log.Error("unmarshal event data into state failed", "err", err)
+
+					continue
+				}
+
+				bdg.update(data.State)
+			}
 		}
 	}
 }
