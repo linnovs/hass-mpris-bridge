@@ -3,6 +3,8 @@ package hassmessage
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/charmbracelet/log"
 )
 
 type MediaPlayerAttrRepeat int
@@ -70,21 +72,37 @@ func (s *State) parseAttrs() {
 	if s.attrs == nil {
 		s.attrs = &MediaPlayerAttributes{}
 		if err := json.Unmarshal(s.Attributes, s.attrs); err != nil {
+			log.Error("failed to unmarshal attributes", "attr", string(s.Attributes))
 			panic(err)
 		}
 	}
 }
 
+const mediaPlayerPrefix = "media_player."
+
 func (s *State) IsMediaPlayer() bool {
 	return strings.HasPrefix(s.EntityID, mediaPlayerPrefix)
 }
 
-func (s *State) contentType() string {
+func (s *State) IsMusicPlayer() bool {
 	s.parseAttrs()
-	return s.attrs.ContentType
+	return s.attrs.ContentType == "music"
 }
 
-func (s *State) repeat() MediaPlayerAttrRepeat {
+func (s *State) PlaybackState() MediaPlayerAttrState {
+	switch s.State {
+	case "playing":
+		return MediaPlayerAttrStatePlaying
+	case "paused":
+		return MediaPlayerAttrStatePaused
+	case "standby":
+		return MediaPlayerAttrStateStopped
+	default:
+		return MediaPlayerAttrStateIdle
+	}
+}
+
+func (s *State) Repeat() MediaPlayerAttrRepeat {
 	s.parseAttrs()
 	switch s.attrs.Repeat {
 	case "all":
@@ -96,42 +114,42 @@ func (s *State) repeat() MediaPlayerAttrRepeat {
 	}
 }
 
-func (s *State) shuffle() bool {
+func (s *State) Shuffle() bool {
 	s.parseAttrs()
 	return s.attrs.Shuffle
 }
 
-func (s *State) duration() int64 {
+func (s *State) Duration() int64 {
 	s.parseAttrs()
 	return s.attrs.Duration
 }
 
-func (s *State) artUrl() string {
+func (s *State) ArtURL() string {
 	s.parseAttrs()
 	return s.attrs.Picture
 }
 
-func (s *State) album() string {
+func (s *State) Album() string {
 	s.parseAttrs()
 	return s.attrs.Album
 }
 
-func (s *State) artist() string {
+func (s *State) Artist() string {
 	s.parseAttrs()
 	return s.attrs.Artist
 }
 
-func (s *State) title() string {
+func (s *State) Title() string {
 	s.parseAttrs()
 	return s.attrs.Title
 }
 
-func (s *State) volume() float64 {
+func (s *State) Volume() float64 {
 	s.parseAttrs()
 	return s.attrs.VolumeLevel
 }
 
-func (s *State) position() int64 {
+func (s *State) Position() int64 {
 	s.parseAttrs()
 	return s.attrs.Position
 }

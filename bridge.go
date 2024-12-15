@@ -200,26 +200,26 @@ func (b *bridge) downloadArtwork(artPath string) string {
 	return fileUrl.String()
 }
 
-func (b *bridge) update(msg hassmessage.Message) {
-	if !msg.Event.IsMediaPlayer() && !msg.Event.IsMusicPlayer() {
+func (b *bridge) update(state hassmessage.State) {
+	if !state.IsMediaPlayer() || !state.IsMusicPlayer() {
 		return
 	}
 
 	props := map[string]dbus.Variant{
-		"PlaybackStatus": dbus.MakeVariant(msg.Event.State().String()),
-		"LoopStatus":     dbus.MakeVariant(msg.Event.Repeat().String()),
-		"Shuffle":        dbus.MakeVariant(msg.Event.Shuffle()),
-		"Volume":         dbus.MakeVariant(msg.Event.Volume()),
-		"Position":       dbus.MakeVariant(msg.Event.Position()),
+		"PlaybackStatus": dbus.MakeVariant(state.PlaybackState().String()),
+		"LoopStatus":     dbus.MakeVariant(state.Repeat().String()),
+		"Shuffle":        dbus.MakeVariant(state.Shuffle()),
+		"Volume":         dbus.MakeVariant(state.Volume()),
+		"Position":       dbus.MakeVariant(state.Position()),
 	}
 
-	if msg.Event.Title() != "" && msg.Event.Artist() != "" {
+	if state.Title() != "" && state.Artist() != "" {
 		props["Metadata"] = dbus.MakeVariant(map[string]dbus.Variant{
-			"mpris:length": dbus.MakeVariant(msg.Event.Duration()),
-			"mpris:artUrl": dbus.MakeVariant(b.downloadArtwork(msg.Event.ArtURL())),
-			"xesam:album":  dbus.MakeVariant(msg.Event.Album()),
-			"xesam:artist": dbus.MakeVariant(msg.Event.Artist()),
-			"xesam:title":  dbus.MakeVariant(msg.Event.Title()),
+			"mpris:length": dbus.MakeVariant(state.Duration()),
+			"mpris:artUrl": dbus.MakeVariant(b.downloadArtwork(state.ArtURL())),
+			"xesam:album":  dbus.MakeVariant(state.Album()),
+			"xesam:artist": dbus.MakeVariant(state.Artist()),
+			"xesam:title":  dbus.MakeVariant(state.Title()),
 		})
 	}
 
@@ -228,16 +228,16 @@ func (b *bridge) update(msg hassmessage.Message) {
 		"status", props["PlaybackStatus"].Value(),
 		"loop", props["LoopStatus"].Value(),
 		"shuffle", props["Shuffle"].Value(),
-		"album", msg.Event.Album(),
-		"title", msg.Event.Title(),
-		"artist", msg.Event.Artist(),
+		"album", state.Album(),
+		"title", state.Title(),
+		"artist", state.Artist(),
 	)
 
 	for k, v := range props {
 		b.properties.SetMust(dbusPlayerIface, k, v)
 	}
 
-	b.player.setEntityID(msg.Event.EntityID())
+	b.player.setEntityID(state.EntityID)
 }
 
 func newBridge(ctx context.Context, client *hassClient) (b *bridge, err error) {
