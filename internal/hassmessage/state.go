@@ -121,7 +121,7 @@ func (s *State) Shuffle() bool {
 
 func (s *State) Duration() int64 {
 	s.parseAttrs()
-	return s.attrs.Duration
+	return s.attrs.Duration * 1000 * 1000 // convert to microseconds
 }
 
 func (s *State) ArtURL() string {
@@ -151,5 +151,5 @@ func (s *State) Volume() float64 {
 
 func (s *State) Position() int64 {
 	s.parseAttrs()
-	return s.attrs.Position
+	return s.attrs.Position * 1000 * 1000 // convert to microseconds
 }
