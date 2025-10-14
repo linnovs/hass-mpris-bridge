@@ -71,7 +71,6 @@ func main() {
 
 				if err := json.Unmarshal(msg.Event.Data, &data); err != nil {
 					log.Error("unmarshal event data into state failed", "err", err)
-
 					continue
 				}
 
