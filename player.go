@@ -121,7 +121,7 @@ func (p *player) props() map[string]*prop.Prop {
 		"Shuffle":        {Value: false, Writable: true, Emit: prop.EmitTrue},
 		"Metadata":       {Value: playerMetadata{}, Writable: false, Emit: prop.EmitTrue},
 		"Volume":         {Value: float64(0), Writable: true, Emit: prop.EmitTrue},
-		"Position":       {Value: int64(0), Writable: false, Emit: prop.EmitFalse},
+		"Position":       {Value: int64(0), Writable: false, Emit: prop.EmitTrue},
 		"MinimumRate":    {Value: playerMinimumRate, Writable: false, Emit: prop.EmitTrue},
 		"MaximumRate":    {Value: playerMaximumRate, Writable: false, Emit: prop.EmitTrue},
 		"CanGoNext":      {Value: true, Writable: false, Emit: prop.EmitTrue},

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/godbus/dbus/v5"
@@ -114,6 +115,35 @@ func (b *bridge) export() (objIface, plyIface introspect.Interface, err error) {
 	return objIface, plyIface, nil
 }
 
+func (b *bridge) updatePosition() {
+	for range time.Tick(time.Second) {
+		if ps, err := b.properties.Get(dbusPlayerIface, "PlaybackStatus"); err != nil {
+			log.Error("get PlaybackStatus property failed", "err", err)
+			continue
+		} else if ps.Value() != playbackPlaying {
+			continue
+		}
+
+		log.Info("should update position")
+
+		va, err := b.properties.Get(dbusPlayerIface, "Position")
+		if err != nil {
+			log.Error("get Position property failed", "err", err)
+			continue
+		}
+
+		last, ok := va.Value().(int64)
+		if !ok {
+			log.Error("Position property has invalid type", "type", va.Value())
+			continue
+		}
+
+		next := last + (1000 * 1000) // add 1 second in microsecond
+		b.properties.SetMust(dbusPlayerIface, "Position", dbus.MakeVariant(next))
+		log.Info("updated position", "from", last, "to", next)
+	}
+}
+
 func (b *bridge) connect(errc chan<- error) (err error) {
 	name := fmt.Sprintf(dbusNameFormat, os.Getpid())
 
@@ -147,6 +177,7 @@ func (b *bridge) connect(errc chan<- error) (err error) {
 	}
 
 	log.Info("exported D-bus /org/mpris/MediaPlayer2", "name", name)
+	go b.updatePosition()
 
 	return nil
 }
