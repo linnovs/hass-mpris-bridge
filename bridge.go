@@ -124,8 +124,6 @@ func (b *bridge) updatePosition() {
 			continue
 		}
 
-		log.Info("should update position")
-
 		va, err := b.properties.Get(dbusPlayerIface, "Position")
 		if err != nil {
 			log.Error("get Position property failed", "err", err)
@@ -140,7 +138,7 @@ func (b *bridge) updatePosition() {
 
 		next := last + (1000 * 1000) // add 1 second in microsecond
 		b.properties.SetMust(dbusPlayerIface, "Position", dbus.MakeVariant(next))
-		log.Info("updated position", "from", last, "to", next)
+		log.Debug("updated track position", "from", last, "to", next)
 	}
 }
 
